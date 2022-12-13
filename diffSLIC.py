@@ -17,7 +17,8 @@ def spixel_upsampling(x: torch.Tensor,
     Args:
         x (torch.Tensor): a tensor of shape (batch, channels, height_s, width_s)
                           superpixel features
-        assignments (torch.Tensor): a tensor of shape (batch, 9, height, width)
+        assignments (torch.Tensor): a tensor of shape
+                                    (batch, (2*candidate_radius + 1)**2, height, width)
                                     pixel-to-superpixel assignment
         stride (Tuple[int, int]): grid size when dividing elem_feats into height_s * width_s grids
         candidate_radius (int): a radius of the region from which the candidate clusters are sampled
@@ -60,7 +61,8 @@ def spixel_downsampling(x: torch.Tensor,
     Args:
         x (torch.Tensor): a tensor of shape (batch, channels, height, width)
                           pixel features
-        assignments (torch.Tensor): a tensor of shape (batch, 9, height_s, width_s)
+        assignments (torch.Tensor): a tensor of shape
+                                    (batch, (2*candidate_radius + 1)**2, height_s, width_s)
                                     superpixel-to-pixel assignment
         stride (Tuple[int, int]): grid size when dividing elem_feats into height_s * width_s grids
         candidate_radius (int): a radius of the region from which the candidate clusters are sampled
@@ -107,9 +109,11 @@ def compute_elem_to_center_assignment(clst_feats: torch.Tensor,
         stable (bool): if True, using stable compuatation of softmax withe temperature
 
     Returns:
-        soft_assignment (torch.Tensor): a tensor of shape (batch, 9, height, width)
+        soft_assignment (torch.Tensor): a tensor of shape
+                                        (batch, (2*candidate_radius + 1)**2, height, width)
                                         each element has a non-negative value
-        similarities (torch.Tensor): a tensor of shape (batch, 9, height, width)
+        similarities (torch.Tensor): a tensor of shape
+                                     (batch, (2*candidate_radius + 1)**2, height, width)
                                      a similarity matrix having real values
     """
     batch_size, channels, height, width = elem_feats.shape
@@ -150,9 +154,11 @@ def compute_center_to_elem_assignment(clst_feats: torch.Tensor,
         stable (bool): if True, using stable compuatation of softmax withe temperature
 
     Returns:
-        soft_assignment (torch.Tensor): a tensor of shape (batch, 9, height_c, width_c)
+        soft_assignment (torch.Tensor): a tensor of shape
+                                        (batch, (2*candidate_radius + 1)**2, height_c, width_c)
                                         each element has a non-negative value
-        similarities (torch.Tensor): a tensor of shape (batch, 9, height, width)
+        similarities (torch.Tensor): a tensor of shape
+                                     (batch, (2*candidate_radius + 1)**2, height, width)
                                      a similarity matrix having real values
     """
     b, c, h, w = clst_feats.shape
@@ -190,9 +196,11 @@ def update_clst_feats(elem_feats: torch.Tensor,
 
     Returns:
         new_clst_feats (torch.Tensor): a tensor of shape (batch, channels, height_c, width_c)
-        soft_assignment (torch.Tensor): a tensor of shape (batch, 36, height_c, width_c)
+        soft_assignment (torch.Tensor): a tensor of shape
+                                        (batch, stride_h * stride_w * (2*candidate_radius + 1)**2, height_c, width_c)
                                         each element has a non-negative value
-        similarities (torch.Tensor): a tensor of shape (batch, 36, height_c, width_c)
+        similarities (torch.Tensor): a tensor of shape
+                                     (batch, stride_h * stride_w * (2*candidate_radius + 1)**2, height_c, width_c)
                                      a similarity matrix having real values
     """
     b, c, h, w = clst_feats.shape
@@ -250,9 +258,10 @@ class DiffSLIC(nn.Module):
         Returns:
             clst_feats (torch.Tensor): a tensor of shape (batch, channels, height_s, width_s)
                                        height_s * width_s <= self.n_spixels
-            p2s_assign (torch.Tensor): a tensor of shape (batch, 9, height, width)
+            p2s_assign (torch.Tensor): a tensor of shape (batch, (2*candidate_radius + 1)**2, height, width)
                                        a pixel-to-superpixel assignemnt matrix
-            s2p_assign (torch.Tensor): a tensor of shape (batch, 36, height_s, width_s)
+            s2p_assign (torch.Tensor): a tensor of shape
+                                       (batch, stride_h * stride_w * (2*candidate_radius + 1)**2, height_s, width_s)
                                        a superpixel-to-pixel assignemnt matrix
                                        if n_iter is 0, s2p_assign is None
         """
