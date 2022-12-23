@@ -8,6 +8,42 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def compute_stride_and_padding(img_shape: Tuple[int, int],
+                               spixel_shape: Tuple[int, int]
+                               ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    """
+    Args:
+        img_shape (Tuple[int, int]): input image shape (height, width)
+        spixel_shape (Tuple[int, int]): superpixel image shape (height, width)
+
+    Returns:
+        stride (Tuple[int, int])
+        padding (Tuple[int, int])
+    """
+    height, width = img_shape
+    height_s, width_s = spixel_shape
+    if height % height_s:
+        stride_h = (height + height_s) // height_s
+    else:
+        stride_h = height // height_s
+    if width % width_s:
+        stride_w = (width + width_s) // width_s
+    else:
+        stride_w = width // width_s
+    stride = (stride_h, stride_w)
+    if width % stride[1]:
+        pad_x = stride[1] - width % stride[1]
+    else:
+        pad_x = 0
+    if height % stride[0]:
+        pad_y = stride[0] - height % stride[0]
+    else:
+        pad_y = 0
+    padding = (pad_x, pad_y)
+
+    return stride, padding
+
+
 def spixel_upsampling(x: torch.Tensor,
                       assignments: torch.Tensor,
                       stride: Optional[Tuple[int, int]]=None,
@@ -31,10 +67,11 @@ def spixel_upsampling(x: torch.Tensor,
     height_s, width_s = x.shape[-2:]
     n_spixels = height_s * width_s
     if stride is None:
-        stride = ((height + height_s) // height_s, (width + width_s) // width_s)
+        stride, padding = compute_stride_and_padding((height, width), (height_s, width_s))
+    else:
+        _, padding = compute_stride_and_padding((height, width), (height_s, width_s))
     # padding an assignments so that its height and width are divisible by stride values
-    pad_x = stride[1] - width % stride[1]
-    pad_y = stride[0] - height % stride[0]
+    pad_x, pad_y = padding
     assignments = F.pad(assignments, (0, pad_x, 0, pad_y))
     height += pad_y
     width += pad_x
@@ -74,10 +111,11 @@ def spixel_downsampling(x: torch.Tensor,
     height, width = x.shape[-2:]
     channels = x.shape[1]
     if stride is None:
-        stride = ((height_s + height) // height_s, (width_s + width) // width_s)
-    # padding an image feature so that its height and width are divisible by stride values
-    pad_x = stride[1] - width % stride[1]
-    pad_y = stride[0] - height % stride[0]
+        stride, padding = compute_stride_and_padding((height, width), (height_s, width_s))
+    else:
+        _, padding = compute_stride_and_padding((height, width), (height_s, width_s))
+    # padding an assignments so that its height and width are divisible by stride values
+    pad_x, pad_y = padding
     x = F.pad(x, (0, pad_x, 0, pad_y))
     height += pad_y
     width += pad_x
@@ -270,8 +308,14 @@ class DiffSLIC(nn.Module):
         if clst_feats is None:
             height_s = int(math.sqrt(self.n_spixels * height / width))
             width_s = int(math.sqrt(self.n_spixels * width / height))
-            stride_h = (height + height_s) // height_s
-            stride_w = (width + width_s) // width_s
+            if height % height_s:
+                stride_h = (height + height_s) // height_s
+            else:
+                stride_h = height // height_s
+            if width % width_s:
+                stride_w = (width + width_s) // width_s
+            else:
+                stride_w = width // width_s
             stride = (stride_h, stride_w)
             clst_feats = F.adaptive_avg_pool2d(x, (height_s, width_s))
         else:
@@ -282,8 +326,14 @@ class DiffSLIC(nn.Module):
             x = x / x.norm(dim=1, keepdim=True)
             clst_feats = clst_feats / clst_feats.norm(dim=1, keepdim=True)
         # padding an image feature so that its height and width are divisible by stride values
-        pad_x = stride[1] - width % stride[1]
-        pad_y = stride[0] - height % stride[0]
+        if width % stride[1]:
+            pad_x = stride[1] - width % stride[1]
+        else:
+            pad_x = 0
+        if height % stride[0]:
+            pad_y = stride[0] - height % stride[0]
+        else:
+            pad_y = 0
         x = F.pad(x, (0, pad_x, 0, pad_y))
         # update cluster features
         s2p_assign = None
@@ -296,6 +346,12 @@ class DiffSLIC(nn.Module):
         # remove the padding region
         p2s_assign = p2s_assign[..., :-pad_y, :-pad_x]
         return clst_feats, p2s_assign, s2p_assign
+
+    def extra_repr(self):
+        return f'n_spixels={self.n_spixels}, \n ' \
+               f'n_iter={self.n_iter}, \n ' \
+               f'tau={self.tau}, \n ' \
+               f'candidate_radius={self.candidate_radius}, \n' 
 
 
 def lbl_to_rgb(lbl: np.ndarray,
@@ -310,7 +366,7 @@ def lbl_to_rgb(lbl: np.ndarray,
                                     each row denotes rgb
 
     Returns:
-        rgb_lbl (np.ndarray): an array of shape (*, height, width)
+        rgb_lbl (np.ndarray): an array of shape (*, height, width, 3)
                               each element is assigned a rgb value based on color_palette
         color_palette (np.ndarray): an array of shape (n_segments, 3)
                                     if color_palette is not given as input,
