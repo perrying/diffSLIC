@@ -85,7 +85,11 @@ def spixel_upsampling(x: torch.Tensor,
     upsampled_features = upsampled_features.contiguous().reshape(batch_size * n_channels, stride[0] * stride[1], -1)
     upsampled_features = F.fold(upsampled_features, (height, width), kernel_size=stride, stride=stride)
     upsampled_features = upsampled_features.reshape(batch_size, n_channels, height, width)
-    upsampled_features = upsampled_features[..., :-pad_y, :-pad_x]
+    # unpad
+    if pad_y > 0:
+        upsampled_features = upsampled_features[..., :-pad_y, :]
+    if pad_x > 0:
+        upsampled_features = upsampled_features[..., :-pad_x]
     return upsampled_features
 
 
@@ -344,7 +348,10 @@ class DiffSLIC(nn.Module):
         # compute a pixel-to-superpixel assignment
         p2s_assign, _ = compute_elem_to_center_assignment(clst_feats, x, stride, self.tau, self.candidate_radius)
         # remove the padding region
-        p2s_assign = p2s_assign[..., :-pad_y, :-pad_x]
+        if pad_y > 0:
+            p2s_assign = p2s_assign[..., :-pad_y, :]
+        if pad_x > 0:
+            p2s_assign = p2s_assign[..., :-pad_x]
         return clst_feats, p2s_assign, s2p_assign
 
     def extra_repr(self):
