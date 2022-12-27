@@ -8,9 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def compute_stride_and_padding(img_shape: Tuple[int, int],
-                               spixel_shape: Tuple[int, int]
-                               ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+def compute_stride_and_padding(img_shape, spixel_shape):
     """
     Args:
         img_shape (Tuple[int, int]): input image shape (height, width)
@@ -24,21 +22,17 @@ def compute_stride_and_padding(img_shape: Tuple[int, int],
     height_s, width_s = spixel_shape
     if height % height_s:
         stride_h = (height + height_s) // height_s
+        pad_y = height_s - height % height_s
     else:
         stride_h = height // height_s
+        pad_y = 0
     if width % width_s:
         stride_w = (width + width_s) // width_s
+        pad_x = width_s - width % width_s
     else:
         stride_w = width // width_s
-    stride = (stride_h, stride_w)
-    if width % stride[1]:
-        pad_x = stride[1] - width % stride[1]
-    else:
         pad_x = 0
-    if height % stride[0]:
-        pad_y = stride[0] - height % stride[0]
-    else:
-        pad_y = 0
+    stride = (stride_h, stride_w)
     padding = (pad_x, pad_y)
 
     return stride, padding
@@ -330,12 +324,12 @@ class DiffSLIC(nn.Module):
             x = x / x.norm(dim=1, keepdim=True)
             clst_feats = clst_feats / clst_feats.norm(dim=1, keepdim=True)
         # padding an image feature so that its height and width are divisible by stride values
-        if width % stride[1]:
-            pad_x = stride[1] - width % stride[1]
+        if width % width_s:
+            pad_x = width_s - width % width_s
         else:
             pad_x = 0
-        if height % stride[0]:
-            pad_y = stride[0] - height % stride[0]
+        if height % height_s:
+            pad_y = height_s - height % height_s
         else:
             pad_y = 0
         x = F.pad(x, (0, pad_x, 0, pad_y))
@@ -444,6 +438,8 @@ if __name__=='__main__':
     min_size = int(0.06 * segment_size)
     max_size = int(3.0 * segment_size)
     np_lbl = _enforce_label_connectivity_cython(np_lbl[None], min_size, max_size)[0]
+    valid_n_spixel = len(np.unique(np_lbl))
+    print(f"#Superpixels {valid_n_spixel}")
     ax3 = fig.add_subplot(2, 2, 3) # bottom left
     # spixels' boundaries after postprocessing
     ax3.imshow(mark_boundaries(face(), np_lbl))
