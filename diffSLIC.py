@@ -15,23 +15,15 @@ def compute_stride_and_padding(img_shape, spixel_shape):
         spixel_shape (Tuple[int, int]): superpixel image shape (height, width)
 
     Returns:
-        stride (Tuple[int, int])
-        padding (Tuple[int, int])
+        stride (Tuple[int, int]): (stride_h, stride_w)
+        padding (Tuple[int, int]): (pad_x, pad_y)
     """
     height, width = img_shape
     height_s, width_s = spixel_shape
-    if height % height_s:
-        stride_h = (height + height_s) // height_s
-        pad_y = height_s - height % height_s
-    else:
-        stride_h = height // height_s
-        pad_y = 0
-    if width % width_s:
-        stride_w = (width + width_s) // width_s
-        pad_x = width_s - width % width_s
-    else:
-        stride_w = width // width_s
-        pad_x = 0
+    stride_h = (height + height_s - 1) // height_s
+    stride_w = (width + width_s - 1) // width_s
+    pad_y = (height_s - height % height_s) % height_s
+    pad_x = (width_s - width % width_s) % width_s
     stride = (stride_h, stride_w)
     padding = (pad_x, pad_y)
 
@@ -306,14 +298,8 @@ class DiffSLIC(nn.Module):
         if clst_feats is None:
             height_s = int(math.sqrt(self.n_spixels * height / width))
             width_s = int(math.sqrt(self.n_spixels * width / height))
-            if height % height_s:
-                stride_h = (height + height_s) // height_s
-            else:
-                stride_h = height // height_s
-            if width % width_s:
-                stride_w = (width + width_s) // width_s
-            else:
-                stride_w = width // width_s
+            stride_h = (height + height_s - 1) // height_s
+            stride_w = (width + width_s - 1) // width_s
             stride = (stride_h, stride_w)
             clst_feats = F.adaptive_avg_pool2d(x, (height_s, width_s))
         else:
@@ -324,14 +310,8 @@ class DiffSLIC(nn.Module):
             x = x / x.norm(dim=1, keepdim=True)
             clst_feats = clst_feats / clst_feats.norm(dim=1, keepdim=True)
         # padding an image feature so that its height and width are divisible by stride values
-        if width % width_s:
-            pad_x = width_s - width % width_s
-        else:
-            pad_x = 0
-        if height % height_s:
-            pad_y = height_s - height % height_s
-        else:
-            pad_y = 0
+        pad_x = (width_s - width % width_s) % width_s
+        pad_y = (height_s - height % height_s) % height_s
         x = F.pad(x, (0, pad_x, 0, pad_y))
         # update cluster features
         s2p_assign = None
