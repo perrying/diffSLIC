@@ -159,7 +159,7 @@ def compute_elem_to_center_assignment(clst_feats: torch.Tensor,
     # by using the fact that the inner product is zero.
     similarities = torch.where(similarities==0, -torch.inf, similarities)
     if stable:
-        similarities = similarities - similarities.max(1, keepdim=True).detach()
+        similarities = similarities - similarities.max(1, keepdim=True).values.detach()
     soft_assignment = (similarities / tau).softmax(1)
     return soft_assignment, similarities
 
@@ -199,7 +199,7 @@ def compute_center_to_elem_assignment(clst_feats: torch.Tensor,
     similarities = torch.einsum('bcphw,bchw->bphw', (unfold_elem_feats, clst_feats))
     similarities = torch.where(similarities==0, -torch.inf, similarities)
     if stable:
-        similarities = similarities - similarities.max(1, keepdim=True).detach()
+        similarities = similarities - similarities.max(1, keepdim=True).values.detach()
     soft_assignemnt = torch.softmax(similarities / tau, dim=1)
     return soft_assignemnt, similarities
 
@@ -241,7 +241,7 @@ def update_clst_feats(elem_feats: torch.Tensor,
     similarities = torch.einsum('bcphw,bchw->bphw', (unfold_elem_feats, clst_feats))
     similarities = torch.where(similarities==0, -torch.inf, similarities)
     if stable:
-        similarities = similarities - similarities.max(1, keepdim=True).detach()
+        similarities = similarities - similarities.max(1, keepdim=True).values.detach()
     soft_assignemnt = torch.softmax(similarities / tau, dim=1)
     new_clst_feats = torch.einsum('bphw,bcphw->bchw', (soft_assignemnt, unfold_elem_feats))
     return new_clst_feats, soft_assignemnt, similarities
