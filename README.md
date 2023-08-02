@@ -14,12 +14,12 @@ See the docstring of each function and class.
 This repository:
 ```
 @misc{diffSLIC,
-    author = {Teppei Suzuki},
     title = {Differentiable SLIC},
-    year = {2022},
+    author = {Suzuki, Teppei},
     publisher = {GitHub},
     journal = {GitHub repository},
     howpublished = {\url{https://github.com/perrying/diffSLIC}},
+    year = {2022},
 }
 ```
 HCFormer:
