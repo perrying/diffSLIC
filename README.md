@@ -8,7 +8,19 @@ Unlike the original SLIC, the similarity between pixels and centers is computed 
 - NumPy==1.23
 
 ## How to use
-See the docstring of each function and class.
+See the docstring of each function and class for details.
+
+Simple usage:
+```python
+import torch
+
+from diffSLIC import DiffSLIC
+
+slic_fn = DiffSLIC(n_spixels=100, n_iter=5, tau=0.01, candidate_radius=1, stable=True)
+
+rgb_img = torch.arange(30000).reshape(1, 3, 100, 100)
+features, spix2pix_assign, pix2spix_assign = slic_fn(rgb_img)
+```
 
 ## Citation
 This repository:
